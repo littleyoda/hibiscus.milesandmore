@@ -76,13 +76,13 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 		Logger.info("Rufe Umsä�tze ab f�r " + backend.getName());
 
 		////////////////
-		String username = konto.getMeta(MMSynchronizeBackend.PROP_USERNAME, null);
+		String username = konto.getKundennummer();
 		String password = konto.getMeta(MMSynchronizeBackend.PROP_PASSWORD, null);
 		if (username == null || username.length() == 0)
 			throw new ApplicationException(i18n.tr("Bitte geben Sie Ihren Karten-Nummer in den Synchronisationsoptionen ein"));
 
 		if (password == null || password.length() == 0)
-			throw new ApplicationException(i18n.tr("Bitte geben Sie Ihr Passwort in den Synchronisationsoptionen ein"));
+			password = Application.getCallback().askPassword("Miles & More");
 
 		Logger.info("username: " + username);
 		////////////////

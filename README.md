@@ -3,6 +3,27 @@ hibiscus.milesandmore
 
 Miles&More-Plugin für Hibiscus
 
+Einrichtung:
+
+Unter dem Punkt "Konten" den Button "Konto manuell anlegen" anklicken.
+
+Folgende Einstellungen sind im Dialog nötig:
+
+| Feld | Inhalt |
+| --------- | ------ |
+| Bezeichnung des Kontos | frei wählbar |
+| Kontoinhalber | frei wählbar |
+| IBAN | leer lassen |
+| BIC | leer lassen |
+| Verfahren | keine Auswahl nötig |
+| Kundenkennung | Karten-Nummer oder Benutzername  |
+| Kontonummer | 0 |
+| Unterkontonummer | Miles & More1  |
+| Bankleitzahl | 0 |
+| Offline-Konto | muss aktiv sein |
+
+Nach dem Speichern müssen unter Synchronisierungsoptionen das Password hinterlegt werden.
+
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
