@@ -18,7 +18,7 @@ Folgende Einstellungen sind im Dialog nötig:
 | Verfahren | keine Auswahl nötig |
 | Kundenkennung | Karten-Nummer oder Benutzername  |
 | Kontonummer | 0 |
-| Unterkontonummer | Miles & More1  |
+| Unterkontonummer | Miles & More  |
 | Bankleitzahl | 0 |
 | Offline-Konto | muss aktiv sein |
 
