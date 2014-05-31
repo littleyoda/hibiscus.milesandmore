@@ -24,6 +24,7 @@ public class MMSynchronizeBackend extends AbstractSynchronizeBackend
   private final static I18N i18n = Application.getPluginLoader().getPlugin(Plugin.class).getResources().getI18N();
 
   final static String PROP_PASSWORD = "Passwort";
+  final static String PROP_OPTIONS = "Optionen (kann leer bleiben)";
   
   /**
    * @see de.willuhn.jameica.hbci.synchronize.AbstractSynchronizeBackend#createJobGroup(de.willuhn.jameica.hbci.rmi.Konto)
@@ -63,6 +64,7 @@ public class MMSynchronizeBackend extends AbstractSynchronizeBackend
       
       List<String> result = new ArrayList<String>();
       result.add(PROP_PASSWORD);
+      result.add(PROP_OPTIONS);
       return result;
     }
     catch (RemoteException re)

@@ -1,15 +1,10 @@
 package org.jameica.hibiscus.milesandmore;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.StringReader;
 import java.rmi.RemoteException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -17,26 +12,12 @@ import java.util.Locale;
 import javax.annotation.Resource;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
-import com.gargoylesoftware.htmlunit.TextPage;
 import com.gargoylesoftware.htmlunit.ThreadedRefreshHandler;
 import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.html.DomElement;
-import com.gargoylesoftware.htmlunit.html.DomNodeList;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlButton;
-import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlImageInput;
-import com.gargoylesoftware.htmlunit.html.HtmlInput;
-import com.gargoylesoftware.htmlunit.html.HtmlOption;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlRadioButtonInput;
-import com.gargoylesoftware.htmlunit.html.HtmlSelect;
-import com.gargoylesoftware.htmlunit.html.HtmlSpan;
-import com.gargoylesoftware.htmlunit.html.HtmlSubmitInput;
 import com.gargoylesoftware.htmlunit.html.HtmlTable;
 import com.gargoylesoftware.htmlunit.html.HtmlTableRow;
 
@@ -46,7 +27,6 @@ import de.willuhn.jameica.hbci.messaging.ImportMessage;
 import de.willuhn.jameica.hbci.messaging.SaldoMessage;
 import de.willuhn.jameica.hbci.rmi.Konto;
 import de.willuhn.jameica.hbci.rmi.Umsatz;
-import de.willuhn.jameica.hbci.synchronize.jobs.SynchronizeJob;
 import de.willuhn.jameica.hbci.synchronize.jobs.SynchronizeJobKontoauszug;
 import de.willuhn.jameica.system.Application;
 import de.willuhn.logging.Logger;
@@ -122,75 +102,86 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 	}
 
 	public List<Umsatz> doOneAccount(Konto konto, String username, String password) throws Exception {
-		List<Umsatz> umsaetze = new ArrayList<Umsatz>();
+		ArrayList<String> seiten = new ArrayList<String>();
+		try {
+			List<Umsatz> umsaetze = new ArrayList<Umsatz>();
 
-		final WebClient webClient = new WebClient(BrowserVersion.INTERNET_EXPLORER_8);
-		webClient.setCssErrorHandler(new SilentCssErrorHandler());
-		webClient.setRefreshHandler(new ThreadedRefreshHandler());
+			final WebClient webClient = new WebClient(BrowserVersion.INTERNET_EXPLORER_8);
+			webClient.getOptions().setThrowExceptionOnScriptError(false);
+			webClient.setCssErrorHandler(new SilentCssErrorHandler());
+			webClient.setRefreshHandler(new ThreadedRefreshHandler());
 
-		// Login-Page und Login
-		HtmlPage page = webClient.getPage("http://www.miles-and-more.com/online/portal/mam/de/homepage?l=de&cid=18002");
-		List<HtmlForm> forms = (List<HtmlForm>) page.getByXPath( "//form[@name='mamrd_loginbox']");
-		if (forms.size() != 1) {
-			throw new ApplicationException(i18n.tr("Konnte das Login-Formular nicht finden."));
-		}
-		HtmlForm form = forms.get(0);
-		form.getInputByName("userid").setValueAttribute(username);
-		form.getInputByName("password").setValueAttribute(password);
-		HtmlAnchor button = (HtmlAnchor) page.getElementById("loginbtn");
-		page = button.click();
-//		Utils.writePage(page, "MMLogin");
-		page = webClient.getPage("https://www.miles-and-more.com/online/myportal/mam/de/account/account_statement?nodeid=2221453&l=de&cid=18002");
-	//	Utils.writePage(page, "MMAccountStatement");
-		List<HtmlTable> tabellen = (List<HtmlTable>) page.getByXPath( "//table");
-		HtmlTable tab = null;
-		for (HtmlTable h : tabellen) {
-			if (h.asText().startsWith("Datum")) {
-				tab = h;
-				break;
+			// Login-Page und Login
+			HtmlPage page = webClient.getPage("http://www.miles-and-more.com/online/portal/mam/de/homepage?l=de&cid=18002");
+			seiten.add(page.asXml());
+			List<HtmlForm> forms = (List<HtmlForm>) page.getByXPath( "//form[@name='mamrd_loginbox']");
+			if (forms.size() != 1) {
+				throw new ApplicationException(i18n.tr("Konnte das Login-Formular nicht finden."));
 			}
-		}
-		if (tab == null) {
-			throw new ApplicationException(i18n.tr("Konnte die Punktetabelle nicht finden."));
-		}
-		String[] current = null;
-		for (int i = 1; i < tab.getRows().size() - 1; i++) {
-			HtmlTableRow zeile = tab.getRows().get(i);
-			if (zeile.getCells().size() != 4) {
-				continue;
-			}
-			if (!zeile.getCells().get(0).asText().trim().equals("")) {
-				store(current, umsaetze, konto);
-				current = new String[4];
-				for (int j = 0; j < 4; j++) {
-					current[j] = "";
+			HtmlForm form = forms.get(0);
+			form.getInputByName("userid").setValueAttribute(username);
+			form.getInputByName("password").setValueAttribute(password);
+			HtmlAnchor button = (HtmlAnchor) page.getElementById("loginbtn");
+			page = button.click();
+			seiten.add(page.asXml());
+
+			page = webClient.getPage("https://www.miles-and-more.com/online/myportal/mam/de/account/account_statement?nodeid=2221453&l=de&cid=18002");
+			seiten.add(page.asXml());
+			List<HtmlTable> tabellen = (List<HtmlTable>) page.getByXPath( "//table");
+			HtmlTable tab = null;
+			for (HtmlTable h : tabellen) {
+				if (h.asText().startsWith("Datum")) {
+					tab = h;
+					break;
 				}
 			}
-			for (int j = 0; j < 4; j++) {
-				String s = remove1310(zeile.getCells().get(j).asText());
-				if (s.isEmpty()) {
+			if (tab == null) {
+				throw new ApplicationException(i18n.tr("Konnte die Punktetabelle nicht finden."));
+			}
+			String[] current = null;
+			for (int i = 1; i < tab.getRows().size() - 1; i++) {
+				HtmlTableRow zeile = tab.getRows().get(i);
+				if (zeile.getCells().size() != 4) {
 					continue;
 				}
-				if (!current[j].isEmpty()) {
-					current[j] += "\n";
+				if (!zeile.getCells().get(0).asText().trim().equals("")) {
+					store(current, umsaetze, konto);
+					current = new String[4];
+					for (int j = 0; j < 4; j++) {
+						current[j] = "";
+					}
 				}
-				current[j] += s; 
+				for (int j = 0; j < 4; j++) {
+					String s = remove1310(zeile.getCells().get(j).asText());
+					if (s.isEmpty()) {
+						continue;
+					}
+					if (!current[j].isEmpty()) {
+						current[j] += "\n";
+					}
+					current[j] += s; 
+				}
+
 			}
+			HtmlTableRow summenzeile = tab.getRows().get(tab.getRows().size() - 1);
+			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
+			store(current, umsaetze, konto);
 
+			// Logout-Funktion erstmal deaktiviert, da es zu einem Absturz von HTMLUNIT führt
+
+			//		List<HtmlAnchor> logout = (List<HtmlAnchor>) page.getByXPath( "//a[@onclick='reportLogout();']");
+			//		if (logout.size() != 1) {
+			//			throw new ApplicationException(i18n.tr("Konnte den Logout-Link nicht finden."));
+			//		}
+			//		page = logout.get(0).click(); 
+			webClient.closeAllWindows();
+			return umsaetze;
+		} catch (Exception ae) {
+			throw ae;
+		} finally {
+			Utils.debug(Utils.getWorkingDir(Plugin.class), backend.getName(), 
+					konto.getMeta(MMSynchronizeBackend.PROP_OPTIONS, ""), seiten);
 		}
-		HtmlTableRow summenzeile = tab.getRows().get(tab.getRows().size() - 1);
-		konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
-		store(current, umsaetze, konto);
-
-		// Logout-Funktion erstmal deaktiviert, da es zu einem Absturz von HTMLUNIT führt
-		
-//		List<HtmlAnchor> logout = (List<HtmlAnchor>) page.getByXPath( "//a[@onclick='reportLogout();']");
-//		if (logout.size() != 1) {
-//			throw new ApplicationException(i18n.tr("Konnte den Logout-Link nicht finden."));
-//		}
-//		page = logout.get(0).click(); 
-		webClient.closeAllWindows();
-		return umsaetze;
 	}
 
 
@@ -234,7 +225,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 	public static String remove1310(String ausgang) {
 		return remove(ausgang, "\n", "\r");
 	}
-	
+
 	public static String remove(String ausgang, String... remove) {
 		for (String r : remove) {
 			ausgang = ausgang.replace(r, " ");
