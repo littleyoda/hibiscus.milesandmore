@@ -22,6 +22,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlTable;
 import com.gargoylesoftware.htmlunit.html.HtmlTableRow;
 
 import de.willuhn.datasource.GenericIterator;
+import de.willuhn.datasource.GenericObject;
 import de.willuhn.jameica.hbci.Settings;
 import de.willuhn.jameica.hbci.messaging.ImportMessage;
 import de.willuhn.jameica.hbci.messaging.SaldoMessage;
@@ -80,6 +81,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 				oldest = umsatz.getDatum();
 		}
 
+		boolean neueUmsaetze = false;
 
 		// Wir holen uns die Umsaetze seit dem letzen Abruf von der Datenbank
 		GenericIterator existing = konto.getUmsaetze(oldest,null);
@@ -88,14 +90,29 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			if (existing.contains(umsatz) != null)
 				continue; // haben wir schon
 
+			neueUmsaetze = true;
+			
 			// Neuer Umsatz. Anlegen
 			umsatz.store();
 
 			// Per Messaging Bescheid geben, dass es einen neuen Umsatz gibt. Der wird dann sofort in der Liste angezeigt
 			Application.getMessagingFactory().sendMessage(new ImportMessage(umsatz));
 		}
-
 		konto.store();
+
+		if (neueUmsaetze) {
+			// Für alle Buchungen rückwirkend den Saldo anpassen, da Lufthansa ab und zu auch mal Korrekturen mit 
+			// dem ursprünglichen Datum einfügt
+
+			double saldo = konto.getSaldo();
+			existing.begin();
+			while (existing.hasNext()) {
+				Umsatz a = (Umsatz) existing.next();
+				a.setSaldo(saldo);
+				a.store();
+				saldo -= a.getBetrag();
+			}
+		}
 
 		// Und per Messaging Bescheid geben, dass das Konto einen neuen Saldo hat
 		Application.getMessagingFactory().sendMessage(new SaldoMessage(konto));
