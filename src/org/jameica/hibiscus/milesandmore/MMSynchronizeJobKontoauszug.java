@@ -5,7 +5,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -21,10 +20,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTable;
 import com.gargoylesoftware.htmlunit.html.HtmlTableRow;
 
-import de.willuhn.datasource.GenericIterator;
-import de.willuhn.datasource.GenericObject;
 import de.willuhn.jameica.hbci.Settings;
-import de.willuhn.jameica.hbci.messaging.ImportMessage;
 import de.willuhn.jameica.hbci.messaging.SaldoMessage;
 import de.willuhn.jameica.hbci.rmi.Konto;
 import de.willuhn.jameica.hbci.rmi.Umsatz;
@@ -52,9 +48,9 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 	@Override
 	public void execute() throws Exception
 	{
-		Konto konto = (Konto) this.getContext(CTX_ENTITY); // wurde von AirPlusSynchronizeJobProviderKontoauszug dort abgelegt
+		Konto konto = (Konto) this.getContext(CTX_ENTITY); 
 
-		Logger.info("Rufe Umsä�tze ab f�r " + backend.getName());
+		Logger.info("Rufe Umsätze ab für " + backend.getName());
 
 		////////////////
 		String username = konto.getKundennummer();
@@ -71,50 +67,8 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 
 		List<Umsatz> fetched = doOneAccount(konto, username, password);
 
-		Date oldest = null;
+		Utils.abgleichAlteundNeueUmsätze(konto, fetched);
 
-		// Ermitteln des aeltesten abgerufenen Umsatzes, um den Bereich zu ermitteln,
-		// gegen den wir aus der Datenbank abgleichen
-		for (Umsatz umsatz:fetched)
-		{
-			if (oldest == null || umsatz.getDatum().before(oldest))
-				oldest = umsatz.getDatum();
-		}
-
-		boolean neueUmsaetze = false;
-
-		// Wir holen uns die Umsaetze seit dem letzen Abruf von der Datenbank
-		GenericIterator existing = konto.getUmsaetze(oldest,null);
-		for (Umsatz umsatz:fetched)
-		{
-			if (existing.contains(umsatz) != null)
-				continue; // haben wir schon
-
-			neueUmsaetze = true;
-			
-			// Neuer Umsatz. Anlegen
-			umsatz.store();
-
-			// Per Messaging Bescheid geben, dass es einen neuen Umsatz gibt. Der wird dann sofort in der Liste angezeigt
-			Application.getMessagingFactory().sendMessage(new ImportMessage(umsatz));
-		}
-		konto.store();
-
-		if (neueUmsaetze) {
-			// Für alle Buchungen rückwirkend den Saldo anpassen, da Lufthansa ab und zu auch mal Korrekturen mit 
-			// dem ursprünglichen Datum einfügt
-
-			double saldo = konto.getSaldo();
-			existing.begin();
-			while (existing.hasNext()) {
-				Umsatz a = (Umsatz) existing.next();
-				a.setSaldo(saldo);
-				a.store();
-				saldo -= a.getBetrag();
-			}
-		}
-
-		// Und per Messaging Bescheid geben, dass das Konto einen neuen Saldo hat
 		Application.getMessagingFactory().sendMessage(new SaldoMessage(konto));
 	}
 
@@ -142,6 +96,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			page = button.click();
 			seiten.add(page.asXml());
 
+			// Auf die Seite mit den Punkten gehen
 			page = webClient.getPage("https://www.miles-and-more.com/online/myportal/mam/de/account/account_statement?nodeid=2221453&l=de&cid=18002");
 			seiten.add(page.asXml());
 			List<HtmlTable> tabellen = (List<HtmlTable>) page.getByXPath( "//table");
@@ -169,7 +124,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 					}
 				}
 				for (int j = 0; j < 4; j++) {
-					String s = remove1310(zeile.getCells().get(j).asText());
+					String s = Utils.remove1310(zeile.getCells().get(j).asText());
 					if (s.isEmpty()) {
 						continue;
 					}
@@ -182,16 +137,17 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			}
 			HtmlTableRow summenzeile = tab.getRows().get(tab.getRows().size() - 1);
 			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
+
 			store(current, umsaetze, konto);
 
-			// Logout-Funktion erstmal deaktiviert, da es zu einem Absturz von HTMLUNIT führt
 
-			//		List<HtmlAnchor> logout = (List<HtmlAnchor>) page.getByXPath( "//a[@onclick='reportLogout();']");
-			//		if (logout.size() != 1) {
-			//			throw new ApplicationException(i18n.tr("Konnte den Logout-Link nicht finden."));
-			//		}
-			//		page = logout.get(0).click(); 
+			List<HtmlAnchor> logout = (List<HtmlAnchor>) page.getByXPath( "//a[@onclick='reportLogout();']");
+			if (logout.size() != 1) {
+				throw new ApplicationException(i18n.tr("Konnte den Logout-Link nicht finden."));
+			}
+			page = logout.get(0).click(); 
 			webClient.closeAllWindows();
+			konto.store();
 			return umsaetze;
 		} catch (Exception ae) {
 			throw ae;
@@ -239,16 +195,6 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 
 	}
 
-	public static String remove1310(String ausgang) {
-		return remove(ausgang, "\n", "\r");
-	}
-
-	public static String remove(String ausgang, String... remove) {
-		for (String r : remove) {
-			ausgang = ausgang.replace(r, " ");
-		}
-		return ausgang.trim();
-	}
 
 }
 
