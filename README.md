@@ -3,6 +3,16 @@ hibiscus.milesandmore
 
 Miles&More-Plugin für Hibiscus
 
+Installation des Plugins:
+- Menü Datei/Einstellungen
+- Reiter "Updates"
+- Neues Repository hinzufügen
+- "http://www.open4me.de/hibiscus/" in die Textbox eintragen
+- Doppel-Klick auf "http://www.open4me.de/hibiscus/"
+- Die Einstallation des gewünschten Plugins durch Doppel-Klick beginnen
+- Hibiscus neu starten
+
+
 Einrichtung:
 
 Unter dem Punkt "Konten" den Button "Konto manuell anlegen" anklicken.
