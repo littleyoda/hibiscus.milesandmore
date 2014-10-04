@@ -172,7 +172,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			
 			HtmlTableRow summenzeile = tab.getFooter().getRows().get(0);
 			seiten.add(summenzeile.asXml()); // 5
-			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
+			konto.setSaldo(string2float(summenzeile.getCell(1).asText().trim()));
 
 			store(current, umsaetze, konto);
 
