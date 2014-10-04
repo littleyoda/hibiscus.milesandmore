@@ -15,7 +15,9 @@ import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
 import com.gargoylesoftware.htmlunit.ThreadedRefreshHandler;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTable;
 import com.gargoylesoftware.htmlunit.html.HtmlTableRow;
@@ -77,39 +79,70 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 		try {
 			List<Umsatz> umsaetze = new ArrayList<Umsatz>();
 
-			final WebClient webClient = new WebClient(BrowserVersion.INTERNET_EXPLORER_8);
+			final WebClient webClient = new WebClient();
+			webClient.getBrowserVersion().setBrowserLanguage("de-de");
+			webClient.getBrowserVersion().setSystemLanguage("de-de");
+			webClient.getBrowserVersion().setUserLanguage("de-de");
+			webClient.getOptions().setRedirectEnabled(true);
 			webClient.getOptions().setThrowExceptionOnScriptError(false);
 			webClient.setCssErrorHandler(new SilentCssErrorHandler());
 			webClient.setRefreshHandler(new ThreadedRefreshHandler());
 
 			// Login-Page und Login
-			HtmlPage page = webClient.getPage("http://www.miles-and-more.com/online/portal/mam/de/homepage?l=de&cid=18002");
-			seiten.add(page.asXml());
-			List<HtmlForm> forms = (List<HtmlForm>) page.getByXPath( "//form[@name='mamrd_loginbox']");
-			if (forms.size() != 1) {
-				throw new ApplicationException(i18n.tr("Konnte das Login-Formular nicht finden."));
-			}
-			HtmlForm form = forms.get(0);
-			form.getInputByName("userid").setValueAttribute(username);
-			form.getInputByName("password").setValueAttribute(password);
-			HtmlAnchor button = (HtmlAnchor) page.getElementById("loginbtn");
+			HtmlPage page = webClient.getPage("https://www.miles-and-more.com/online/portal/mam/de/profilelogin?l=de&cid=18002");
+			seiten.add(page.asXml()); // 0
+			
+			HtmlForm form =  new XPathIterator<HtmlForm>(page, "//form", "Login-Formular") {
+				public boolean matches(HtmlForm f) {
+					return f.getAttribute("id") != null && f.getAttribute("id").endsWith("mam-usm-userid-form");
+				}
+			}.getOne();
+
+			seiten.add(form.asXml()); // 1
+			HtmlInput userid =  new XPathIterator<HtmlInput>(form, "//input", "Input Userid") {
+				@Override
+				public boolean matches(HtmlInput f) {
+					return f.getAttribute("id") != null && f.getAttribute("id").endsWith("-fld-userid");
+				}
+			}.getOne();
+
+			HtmlInput inpPassword =  new XPathIterator<HtmlInput>(form, "//input", "Input Password") {
+				@Override
+				public boolean matches(HtmlInput f) {
+					if (f.getAttribute("id") != null && f.getAttribute("id").endsWith("-fld-password")) {
+						System.out.println(f.asText() + " " + f.getAttributesMap().entrySet());
+					}
+					return f.getAttribute("id") != null && f.getAttribute("id").endsWith("-fld-password");
+				}
+			}.getOne();
+
+			HtmlButton button =  new XPathIterator<HtmlButton>(form, ".//button", "Login Button") {
+				@Override
+				public boolean matches(HtmlButton f) {
+					return f.getAttribute("type") != null && f.getAttribute("type").equals("submit");
+							
+				}
+			}.getOne();
+
+			userid.setValueAttribute(username);
+			inpPassword.setValueAttribute(password);
 			page = button.click();
-			seiten.add(page.asXml());
+			seiten.add(page.asXml()); // 2
 
 			// Auf die Seite mit den Punkten gehen
-			page = webClient.getPage("https://www.miles-and-more.com/online/myportal/mam/de/account/account_statement?nodeid=2221453&l=de&cid=18002");
-			seiten.add(page.asXml());
-			List<HtmlTable> tabellen = (List<HtmlTable>) page.getByXPath( "//table");
-			HtmlTable tab = null;
-			for (HtmlTable h : tabellen) {
-				if (h.asText().startsWith("Datum")) {
-					tab = h;
-					break;
+			page = webClient.getPage("https://www.miles-and-more.com/online/myportal/mam/de/account/account_statement?l=de&cid=18002");
+			seiten.add(page.asXml()); // 3
+
+			HtmlTable tab =  new XPathIterator<HtmlTable>(page, "//table", "Punktetabelle") {
+				@Override
+				public boolean matches(HtmlTable f) {
+					return f.asText().startsWith("Datum");
+							
 				}
-			}
-			if (tab == null) {
-				throw new ApplicationException(i18n.tr("Konnte die Punktetabelle nicht finden."));
-			}
+			}.getOne();
+			
+			seiten.add(tab.asXml()); // 4
+
 			String[] current = null;
 			for (int i = 1; i < tab.getRows().size() - 1; i++) {
 				HtmlTableRow zeile = tab.getRows().get(i);
@@ -135,17 +168,25 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 				}
 
 			}
-			HtmlTableRow summenzeile = tab.getRows().get(tab.getRows().size() - 1);
+			
+			
+			HtmlTableRow summenzeile = tab.getFooter().getRows().get(0);
+			seiten.add(summenzeile.asXml()); // 5
 			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
 
 			store(current, umsaetze, konto);
 
 
-			List<HtmlAnchor> logout = (List<HtmlAnchor>) page.getByXPath( "//a[@onclick='reportLogout();']");
-			if (logout.size() != 1) {
-				throw new ApplicationException(i18n.tr("Konnte den Logout-Link nicht finden."));
-			}
-			page = logout.get(0).click(); 
+			HtmlAnchor logout =  new XPathIterator<HtmlAnchor>(page, "//a", "Logout") {
+				@Override
+				public boolean matches(HtmlAnchor f) {
+					return f.asText().contains("Logout") || f.asText().contains("Abmeld") 
+							|| f.asXml().contains("Logout") || f.asXml().contains("Abmeld");
+							
+				}
+			}.getOne();
+			page = logout.click();
+			seiten.add(page.asXml()); // 6
 			webClient.closeAllWindows();
 			konto.store();
 			return umsaetze;
