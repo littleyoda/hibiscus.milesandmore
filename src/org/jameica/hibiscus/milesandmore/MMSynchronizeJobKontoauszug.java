@@ -144,9 +144,9 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			seiten.add(tab.asXml()); // 4
 
 			String[] current = null;
-			for (int i = 1; i < tab.getRows().size() - 1; i++) {
+			for (int i = 1; i < tab.getBodies().get(0).getRows().size() - 1; i++) {
 				HtmlTableRow zeile = tab.getRows().get(i);
-				if (zeile.getCells().size() != 4) {
+				if (zeile.getCells().size() != 4 || zeile.asText().contains("Ihr aktueller Kontostand:")) {
 					continue;
 				}
 				if (!zeile.getCells().get(0).asText().trim().equals("")) {
@@ -172,7 +172,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			
 			HtmlTableRow summenzeile = tab.getFooter().getRows().get(0);
 			seiten.add(summenzeile.asXml()); // 5
-			konto.setSaldo(string2float(summenzeile.getCell(1).asText().trim()));
+			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
 
 			store(current, umsaetze, konto);
 

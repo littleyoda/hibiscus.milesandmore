@@ -84,6 +84,11 @@ public class MMSynchronizeJobProviderKontoauszug implements MMSynchronizeJobProv
     return 1;
   }
 
+@Override
+public boolean supports(Class<? extends SynchronizeJob> type, Konto k) {
+	return true;
+}
+
 }
 
 
