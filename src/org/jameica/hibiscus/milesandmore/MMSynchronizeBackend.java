@@ -19,7 +19,7 @@ import de.willuhn.util.ProgressMonitor;
  * Implementierung eines Sync-Backends.
  */
 @Lifecycle(Type.CONTEXT)
-public class MMSynchronizeBackend extends AbstractSynchronizeBackend
+public class MMSynchronizeBackend extends AbstractSynchronizeBackend<MMSynchronizeJobProvider>
 {
   private final static I18N i18n = Application.getPluginLoader().getPlugin(Plugin.class).getResources().getI18N();
 
@@ -39,7 +39,7 @@ public class MMSynchronizeBackend extends AbstractSynchronizeBackend
    * @see de.willuhn.jameica.hbci.synchronize.AbstractSynchronizeBackend#getJobProviderInterface()
    */
   @Override
-  protected Class<? extends SynchronizeJobProvider> getJobProviderInterface()
+  protected Class<MMSynchronizeJobProvider> getJobProviderInterface()
   {
     return MMSynchronizeJobProvider.class;
   }
