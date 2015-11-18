@@ -15,6 +15,7 @@ import com.gargoylesoftware.htmlunit.ThreadedRefreshHandler;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -84,6 +85,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			webClient.getBrowserVersion().setUserLanguage("de-de");
 			webClient.getOptions().setRedirectEnabled(true);
 			webClient.getOptions().setThrowExceptionOnScriptError(false);
+			webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
 			webClient.setCssErrorHandler(new SilentCssErrorHandler());
 			webClient.setRefreshHandler(new ThreadedRefreshHandler());
 
@@ -168,10 +170,16 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 
 			}
 			
+//			 <meta name="DCSext.MileBal" content="218294"/>
+//			HtmlElement pmiles =  new XPathIterator<HtmlElement>(form, "//meta", "Prämienmeilen") {
+//				@Override
+//				public boolean matches(HtmlElement f) {
+//					return f.getAttribute("name") != null && f.getAttribute("name").equals("DCSext.MileBal");
+//				}
+//			}.getOne();
 			
-			HtmlTableRow summenzeile = tab.getFooter().getRows().get(0);
-			seiten.add(summenzeile.asXml()); // 5
-			konto.setSaldo(string2float(summenzeile.getCell(2).asText().trim()));
+			HtmlElement pmiles = (HtmlElement) page.getElementById("mam-uib-pmiles");
+			konto.setSaldo(string2float(pmiles.getTextContent()));
 
 			store(current, umsaetze, konto);
 
@@ -190,7 +198,8 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			konto.store();
 			return umsaetze;
 		} catch (Exception ae) {
-			throw ae;
+			Logger.error("Miles&More", ae);
+			throw new ApplicationException(ae);
 		} finally {
 			Utils.debug(Utils.getWorkingDir(Plugin.class), backend.getName(), 
 					konto.getMeta(MMSynchronizeBackend.PROP_OPTIONS, ""), seiten);
