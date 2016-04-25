@@ -194,7 +194,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			}.getOne();
 			page = logout.click();
 			seiten.add(page.asXml()); // 6
-			webClient.closeAllWindows();
+			webClient.close();
 			konto.store();
 			return umsaetze;
 		} catch (Exception ae) {
