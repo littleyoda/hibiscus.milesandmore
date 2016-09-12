@@ -5,6 +5,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -14,6 +19,8 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.gargoylesoftware.htmlunit.ProxyConfig;
+import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import de.willuhn.datasource.GenericIterator;
@@ -28,6 +35,44 @@ import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 
 public class Utils {
+
+	public static void setProxyCfg(WebClient webClient, String url)  {
+		boolean useSystem = Application.getConfig().getUseSystemProxy();
+
+		ProxyConfig pc = null;
+		if (useSystem) {
+			try {
+				List<Proxy> proxies = ProxySelector.getDefault().select(new URI(url));
+				Logger.info("Using system proxy settings: " + proxies);
+				for (Proxy p : proxies) {
+					if (p.type() == Proxy.Type.HTTP && p.address() instanceof InetSocketAddress) {
+						pc = new ProxyConfig();
+						InetSocketAddress addr = (InetSocketAddress) p.address();
+						pc.setProxyHost(addr.getHostString());
+						pc.setProxyPort(addr.getPort());
+						webClient.getOptions().setProxyConfig(pc);
+						Logger.info("Setting Proxy to " + pc);
+						return;
+					}
+				}
+				Logger.error("No default Proxy found");
+			} catch (URISyntaxException e) {
+				Logger.error("No default Proxy found", e);
+			}
+		} else {
+			String host = Application.getConfig().getHttpsProxyHost();
+			int port = Application.getConfig().getHttpsProxyPort();
+			if (host != null && host.length() > 0 && port > 0) {
+				pc = new ProxyConfig();
+				pc.setProxyHost(host);
+				pc.setProxyPort(port);
+				webClient.getOptions().setProxyConfig(pc);
+				Logger.info("Setting Proxy to " + pc);
+				return;
+			}
+		}
+		Logger.info("Keine gültige Proxy-Einstellunge gefunden. (" + useSystem + ")");
+	}
 
 	
 	  // Zerlegt einen String intelligent in max. 27 Zeichen lange Stücke

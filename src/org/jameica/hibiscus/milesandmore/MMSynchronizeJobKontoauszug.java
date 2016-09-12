@@ -80,6 +80,7 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 			List<Umsatz> umsaetze = new ArrayList<Umsatz>();
 
 			final WebClient webClient = new WebClient();
+			Utils.setProxyCfg(webClient, "https://www.miles-and-more.com");
 			webClient.getBrowserVersion().setBrowserLanguage("de-de");
 			webClient.getBrowserVersion().setSystemLanguage("de-de");
 			webClient.getBrowserVersion().setUserLanguage("de-de");
@@ -218,6 +219,9 @@ public class MMSynchronizeJobKontoauszug extends SynchronizeJobKontoauszug imple
 		}
 		Umsatz newUmsatz = (Umsatz) Settings.getDBService().createObject(Umsatz.class,null);
 		newUmsatz.setKonto(konto);
+		if (current[2].endsWith("M")) {
+			current[2] = current[2].substring(0, current[2].length()-1);
+		}
 		newUmsatz.setBetrag(string2float(current[2]));
 		newUmsatz.setDatum(df.parse(current[0]));
 		newUmsatz.setValuta(df.parse(current[0]));
